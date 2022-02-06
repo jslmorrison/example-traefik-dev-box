@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+
+  traefik:
+    image: traefik:v2.6
+    command:
+      - "--accessLog"
+      - "--api"
+      - "--api.insecure=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=DEBUG"
+      - "--providers.docker.network=traefik-web"
+      - "--providers.docker=true"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+      - traefik-web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=${TRAEFIK_HOST_RULE}"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.tls=true"
+
+  portainer:
+    image: portainer/portainer-ce:2.11.1
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer-secure.rule=${PORTAINER_HOST_RULE}"
+      - "traefik.http.routers.portainer-secure.entrypoints=websecure"
+      - "traefik.http.routers.portainer-secure.tls=true"
+      - "traefik.http.services.portainer-secure.loadbalancer.server.port=9000"
+
+volumes:
+  portainer_data:
+networks:
+  traefik-web:
+    external: true
